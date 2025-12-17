@@ -1,0 +1,24 @@
+{{define "ticker_row.html"}}
+<tr id="coin-{{.ID}}"
+    x-data="coinTicker({ id: '{{.ID}}', delays: {{json .Delays}} })"
+    x-init="startTimer()"
+    hx-get="/ticker/{{.ID}}"
+    hx-trigger="refresh"
+    hx-swap="outerHTML">
+    <td>{{.DisplayName}}</td>
+    <td>${{printf "%.2f" .Price}}</td>
+    <td class="{{if ge .Change24h 0.0}}change-positive{{else}}change-negative{{end}}">
+        {{if ge .Change24h 0.0}}+{{end}}{{printf "%.2f" .Change24h}}%
+    </td>
+    <td>
+        <span x-text="countdown + 's'"></span>
+        <svg class="donut-timer" viewBox="0 0 20 20">
+            <circle class="donut-bg" cx="10" cy="10" r="7"></circle>
+            <circle class="donut-progress"
+                    cx="10" cy="10" r="7"
+                    stroke-dasharray="44"
+                    :stroke-dashoffset="progress"></circle>
+        </svg>
+    </td>
+</tr>
+{{end}}

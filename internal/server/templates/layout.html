@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en" x-data="themeManager()" :data-theme="currentTheme">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Title}} - CoinOps Dashboard</title>
+    <link rel="stylesheet" href="/assets/css/pico.min.css">
+    <style>
+        /* HTMX indicator styles */
+        .htmx-indicator { display: none; }
+        .htmx-request .htmx-indicator { display: inline; }
+        .htmx-request.htmx-indicator { display: inline; }
+
+        /* Notification badge */
+        .notification-badge {
+            background: var(--pico-primary);
+            color: var(--pico-primary-inverse);
+            border-radius: 50%;
+            padding: 0.1em 0.5em;
+            font-size: 0.75em;
+            vertical-align: super;
+            margin-left: 0.25em;
+        }
+        .notification-badge:empty { display: none; }
+
+        /* SVG donut timer */
+        .donut-timer {
+            width: 16px;
+            height: 16px;
+            display: inline-block;
+            vertical-align: middle;
+            margin-left: 0.25em;
+        }
+        .donut-timer circle {
+            fill: none;
+            stroke-width: 3;
+        }
+        .donut-bg {
+            stroke: var(--pico-muted-border-color);
+        }
+        .donut-progress {
+            stroke: var(--pico-primary);
+            stroke-linecap: round;
+            transform: rotate(-90deg);
+            transform-origin: center;
+        }
+
+        /* Theme toggle fieldset */
+        .theme-toggle {
+            display: flex;
+            gap: 1rem;
+            margin: 0;
+            padding: 0;
+            border: none;
+        }
+        .theme-toggle label {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+            cursor: pointer;
+            margin: 0;
+        }
+        .theme-toggle input[type="radio"] {
+            margin: 0;
+        }
+
+        /* Compact view */
+        .compact-view table { font-size: 0.875em; }
+        .compact-view td, .compact-view th { padding: 0.5rem; }
+
+        /* Positive/negative change colors */
+        .change-positive { color: var(--pico-ins-color, #2a9d8f); }
+        .change-negative { color: var(--pico-del-color, #e76f51); }
+
+        /* Settings section */
+        .settings-section {
+            margin-bottom: 1.5rem;
+        }
+        .settings-section h4 {
+            margin-bottom: 0.5rem;
+        }
+    </style>
+</head>
+<body :class="{ 'compact-view': compactView }">
+    <nav class="container-fluid">
+        <ul>
+            <li><strong>CoinOps Dashboard</strong></li>
+        </ul>
+        <ul>
+            <li>
+                <a href="#"
+                   id="notifications-link"
+                   hx-get="/notifications"
+                   hx-target="#notifications-dialog-content"
+                   hx-swap="innerHTML"
+                   @click="$refs.notificationsDialog.showModal()">
+                    <span id="notification-counter">Notifications (<span id="notification-count">{{.NotificationCount}}</span>)</span>
+                </a>
+            </li>
+            <li><a href="#" @click.prevent="$refs.settingsDialog.showModal()">Settings</a></li>
+        </ul>
+    </nav>
+
+    <main class="container">
+        {{template "content" .}}
+    </main>
+
+    <!-- Notifications Dialog -->
+    <dialog x-ref="notificationsDialog">
+        <article>
+            <header>
+                <button aria-label="Close" rel="prev" @click="$refs.notificationsDialog.close()"></button>
+                <h3>Notifications</h3>
+            </header>
+            <div id="notifications-dialog-content">
+                <p>Loading...</p>
+            </div>
+            <footer>
+                <button @click="$refs.notificationsDialog.close()">Close</button>
+            </footer>
+        </article>
+    </dialog>
+
+    <!-- Settings Dialog -->
+    <dialog x-ref="settingsDialog">
+        <article>
+            <header>
+                <button aria-label="Close" rel="prev" @click="$refs.settingsDialog.close()"></button>
+                <h3>Settings</h3>
+            </header>
+
+            <div class="settings-section">
+                <h4>Theme</h4>
+                <fieldset class="theme-toggle">
+                    <label>
+                        <input type="radio" name="theme" value="light"
+                               :checked="themeSetting === 'light'"
+                               @change="setTheme('light')">
+                        Light
+                    </label>
+                    <label>
+                        <input type="radio" name="theme" value="dark"
+                               :checked="themeSetting === 'dark'"
+                               @change="setTheme('dark')">
+                        Dark
+                    </label>
+                    <label>
+                        <input type="radio" name="theme" value="auto"
+                               :checked="themeSetting === 'auto'"
+                               @change="setTheme('auto')">
+                        Auto
+                    </label>
+                </fieldset>
+            </div>
+
+            <div class="settings-section">
+                <h4>Display</h4>
+                <label>
+                    <input type="checkbox" role="switch" x-model="compactView" @change="saveCompactView()">
+                    Compact View
+                </label>
+            </div>
+
+            <footer>
+                <button @click="$refs.settingsDialog.close()">Close</button>
+            </footer>
+        </article>
+    </dialog>
+
+    <script src="/assets/js/htmx.min.js"></script>
+    <script src="/assets/js/alpine.min.js" defer></script>
+    <script>
+        // Theme manager Alpine.js component
+        function themeManager() {
+            return {
+                themeSetting: localStorage.getItem('theme') || 'auto',
+                compactView: localStorage.getItem('compactView') === 'true',
+                mediaQuery: window.matchMedia('(prefers-color-scheme: dark)'),
+
+                init() {
+                    this.mediaQuery.addEventListener('change', () => {
+                        if (this.themeSetting === 'auto') {
+                            this.currentTheme = this.getSystemTheme();
+                        }
+                    });
+                },
+
+                get currentTheme() {
+                    if (this.themeSetting === 'auto') {
+                        return this.getSystemTheme();
+                    }
+                    return this.themeSetting;
+                },
+
+                getSystemTheme() {
+                    return this.mediaQuery.matches ? 'dark' : 'light';
+                },
+
+                setTheme(theme) {
+                    this.themeSetting = theme;
+                    localStorage.setItem('theme', theme);
+                },
+
+                saveCompactView() {
+                    localStorage.setItem('compactView', this.compactView);
+                }
+            };
+        }
+
+        // Per-coin ticker component with delay queue
+        // Each coin row independently manages its own refresh timing
+        function coinTicker(config) {
+            return {
+                id: config.id,
+                delays: config.delays,      // Queue of 10 delays in ms
+                currentDelay: 0,            // Current delay being counted down
+                remaining: 0,               // Time remaining in ms
+                timerId: null,
+
+                startTimer() {
+                    if (this.delays.length === 0) return;
+
+                    // Pop the first delay from the queue
+                    this.currentDelay = this.delays.shift();
+                    this.remaining = this.currentDelay;
+
+                    const startTime = Date.now();
+
+                    this.timerId = setInterval(() => {
+                        const elapsed = Date.now() - startTime;
+                        this.remaining = Math.max(0, this.currentDelay - elapsed);
+
+                        if (this.remaining <= 0) {
+                            clearInterval(this.timerId);
+                            // Trigger HTMX to fetch new row (brings fresh queue of 10 delays)
+                            htmx.trigger(this.$el, 'refresh');
+                        }
+                    }, 100);
+                },
+
+                get countdown() {
+                    return Math.ceil(this.remaining / 1000);
+                },
+
+                get progress() {
+                    // SVG circle circumference = 2 * PI * 7 ≈ 44
+                    if (this.currentDelay === 0) return 0;
+                    const percent = this.remaining / this.currentDelay;
+                    return 44 * (1 - percent);
+                },
+
+                destroy() {
+                    if (this.timerId) {
+                        clearInterval(this.timerId);
+                    }
+                }
+            };
+        }
+    </script>
+</body>
+</html>

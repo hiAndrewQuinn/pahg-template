@@ -1,0 +1,45 @@
+{{define "content"}}
+<section>
+    <hgroup>
+        <h1>Live Crypto Ticker</h1>
+        <p>Real-time prices from CoinGecko API with Poisson-distributed refresh intervals</p>
+    </hgroup>
+
+    <div class="grid">
+        <div>
+            <input type="search"
+                   name="search"
+                   placeholder="Search coins..."
+                   hx-get="/search"
+                   hx-trigger="keyup changed delay:500ms, search"
+                   hx-target="#ticker-table"
+                   hx-indicator="#search-indicator">
+            <span id="search-indicator" class="htmx-indicator" aria-busy="true"></span>
+        </div>
+    </div>
+
+    <div id="ticker-table"
+         hx-get="/ticker"
+         hx-trigger="load"
+         hx-swap="innerHTML">
+        <p aria-busy="true">Loading prices...</p>
+    </div>
+</section>
+
+<section>
+    <hgroup>
+        <h2>Admin Operations</h2>
+        <p>Demonstrate loading states and OOB swaps</p>
+    </hgroup>
+
+    <div id="report-section">
+        <button hx-post="/generate-report"
+                hx-target="#report-section"
+                hx-swap="innerHTML"
+                hx-indicator="#report-indicator">
+            <span id="report-indicator" class="htmx-indicator" aria-busy="true"></span>
+            Generate Compliance Report
+        </button>
+    </div>
+</section>
+{{end}}

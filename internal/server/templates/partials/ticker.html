@@ -1,0 +1,21 @@
+{{define "ticker.html"}}
+<table>
+    <thead>
+        <tr>
+            <th scope="col">Coin</th>
+            <th scope="col">Price (USD)</th>
+            <th scope="col">24h Change</th>
+            <th scope="col">Next Update</th>
+        </tr>
+    </thead>
+    <tbody id="ticker-body">
+        {{range .Coins}}
+        {{template "ticker_row.html" .}}
+        {{else}}
+        <tr>
+            <td colspan="4">No coins found</td>
+        </tr>
+        {{end}}
+    </tbody>
+</table>
+{{end}}

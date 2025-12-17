@@ -1,0 +1,20 @@
+{{define "report-success.html"}}
+<article>
+    <header>
+        <h4>Report Generated Successfully</h4>
+    </header>
+    <p>Compliance report <code>compliance_{{.Timestamp}}.pdf</code> has been generated and is ready for download.</p>
+    <footer>
+        <button hx-post="/generate-report"
+                hx-target="#report-section"
+                hx-swap="innerHTML"
+                hx-indicator="#report-indicator-2">
+            <span id="report-indicator-2" class="htmx-indicator" aria-busy="true"></span>
+            Generate Another Report
+        </button>
+    </footer>
+</article>
+
+<!-- OOB swap for notification counter -->
+<span id="notification-counter" hx-swap-oob="true">Notifications (<span id="notification-count">{{.NotificationCount}}</span>)</span>
+{{end}}

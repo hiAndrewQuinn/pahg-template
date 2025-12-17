@@ -1,0 +1,24 @@
+{{define "notifications.html"}}
+{{if .Notifications}}
+<table>
+    <thead>
+        <tr>
+            <th scope="col">Time</th>
+            <th scope="col">Title</th>
+            <th scope="col">Message</th>
+        </tr>
+    </thead>
+    <tbody>
+        {{range .Notifications}}
+        <tr>
+            <td><small>{{.Timestamp.Format "15:04:05"}}</small></td>
+            <td><strong>{{.Title}}</strong></td>
+            <td>{{.Message}}</td>
+        </tr>
+        {{end}}
+    </tbody>
+</table>
+{{else}}
+<p>No notifications yet.</p>
+{{end}}
+{{end}}

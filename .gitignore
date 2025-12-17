@@ -1,0 +1,6 @@
+# Binaries
+coinops
+coinops-*
+coinops-dashboard
+coinops-dashboard-*
+*.exe
