@@ -8,22 +8,23 @@ var (
 	// Commit is the git commit hash
 	Commit = "unknown"
 
-	// BuildDate is the build timestamp (RFC3339 format)
-	BuildDate = "unknown"
+	// CommitDate is the git commit timestamp (ISO 8601 format)
+	// Using commit date instead of build date ensures reproducible builds
+	CommitDate = "unknown"
 )
 
 // Info returns all version information as a struct
 type Info struct {
-	Version   string `json:"version"`
-	Commit    string `json:"commit"`
-	BuildDate string `json:"build_date"`
+	Version    string `json:"version"`
+	Commit     string `json:"commit"`
+	CommitDate string `json:"commit_date"`
 }
 
 // Get returns the current version information
 func Get() Info {
 	return Info{
-		Version:   Version,
-		Commit:    Commit,
-		BuildDate: BuildDate,
+		Version:    Version,
+		Commit:     Commit,
+		CommitDate: CommitDate,
 	}
 }

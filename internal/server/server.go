@@ -100,7 +100,7 @@ type PageData struct {
 	AvgRefreshMs      int
 	Version           string
 	Commit            string
-	BuildDate         string
+	CommitDate        string
 }
 
 // TickerData holds data for the full ticker table (initial load)
@@ -152,7 +152,7 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 		AvgRefreshMs:      s.cfg.Features.AvgRefreshIntervalMs,
 		Version:           versionInfo.Version,
 		Commit:            versionInfo.Commit,
-		BuildDate:         versionInfo.BuildDate,
+		CommitDate:        versionInfo.CommitDate,
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -293,7 +293,7 @@ func (s *Server) handleNotifications(w http.ResponseWriter, r *http.Request) {
 type MetadataResponse struct {
 	Version     string                 `json:"version"`
 	Commit      string                 `json:"commit"`
-	BuildDate   string                 `json:"build_date"`
+	CommitDate  string                 `json:"commit_date"`
 	Environment string                 `json:"environment"`
 	Features    map[string]interface{} `json:"features"`
 }
@@ -314,7 +314,7 @@ func (s *Server) handleMetadata(w http.ResponseWriter, r *http.Request) {
 	response := MetadataResponse{
 		Version:     versionInfo.Version,
 		Commit:      versionInfo.Commit,
-		BuildDate:   versionInfo.BuildDate,
+		CommitDate:  versionInfo.CommitDate,
 		Environment: environment,
 		Features:    features,
 	}

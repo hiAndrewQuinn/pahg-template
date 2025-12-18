@@ -15,15 +15,16 @@ COPY . .
 
 # Build static binary with version information
 # Version info is computed from git if available, otherwise uses defaults
+# Uses git commit timestamp (not build time) for reproducible builds
 RUN VERSION=$(git describe --tags --always --dirty 2>/dev/null || echo "dev") && \
     COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown") && \
-    BUILD_DATE=$(date -u '+%Y-%m-%dT%H:%M:%SZ') && \
-    echo "Building version=${VERSION} commit=${COMMIT} date=${BUILD_DATE}" && \
+    COMMIT_DATE=$(git log -1 --format=%cI 2>/dev/null || echo "unknown") && \
+    echo "Building version=${VERSION} commit=${COMMIT} commit_date=${COMMIT_DATE}" && \
     CGO_ENABLED=0 GOOS=linux go build \
     -ldflags="-s -w \
     -X pahg-template/internal/version.Version=${VERSION} \
     -X pahg-template/internal/version.Commit=${COMMIT} \
-    -X pahg-template/internal/version.BuildDate=${BUILD_DATE}" \
+    -X pahg-template/internal/version.CommitDate=${COMMIT_DATE}" \
     -o /coinops ./cmd/coinops
 
 # Runtime stage - distroless static image for Go binaries

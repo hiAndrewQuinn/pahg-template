@@ -2,13 +2,14 @@
 BINARY_NAME=coinops
 VERSION?=$(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 COMMIT=$(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
-BUILD_DATE=$(shell date -u '+%Y-%m-%dT%H:%M:%SZ')
+# Use git commit timestamp for reproducible builds (not build time)
+COMMIT_DATE=$(shell git log -1 --format=%cI 2>/dev/null || echo "unknown")
 
 # Ldflags to inject version information
 LDFLAGS=-ldflags "\
 	-X pahg-template/internal/version.Version=$(VERSION) \
 	-X pahg-template/internal/version.Commit=$(COMMIT) \
-	-X pahg-template/internal/version.BuildDate=$(BUILD_DATE)"
+	-X pahg-template/internal/version.CommitDate=$(COMMIT_DATE)"
 
 # Build the binary
 .PHONY: build
@@ -38,7 +39,7 @@ clean:
 version:
 	@echo "Version: $(VERSION)"
 	@echo "Commit: $(COMMIT)"
-	@echo "Build Date: $(BUILD_DATE)"
+	@echo "Commit Date: $(COMMIT_DATE)"
 
 # Build Docker image (version info auto-detected from git)
 .PHONY: docker-build
