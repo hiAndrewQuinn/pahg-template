@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"runtime"
 	"strings"
 	"time"
 
@@ -32,6 +33,7 @@ type Server struct {
 	coinService   *coingecko.Service
 	notifications *notifications.Store
 	mux           *http.ServeMux
+	startTime     time.Time
 }
 
 // Template functions
@@ -55,6 +57,7 @@ func New(cfg *config.Config) (*Server, error) {
 		coinService:   coingecko.NewService(cfg.Coins),
 		notifications: notifications.NewStore(),
 		mux:           http.NewServeMux(),
+		startTime:     time.Now(),
 	}
 
 	s.setupRoutes()
@@ -82,6 +85,7 @@ func (s *Server) setupRoutes() {
 
 	// API endpoints
 	s.mux.HandleFunc("/metadata", s.handleMetadata)
+	s.mux.HandleFunc("/health", s.handleHealth)
 }
 
 // Handler returns the HTTP handler with middleware applied
@@ -336,4 +340,35 @@ func getEnvironment() string {
 		env = "production"
 	}
 	return env
+}
+
+// HealthResponse holds the health endpoint response for observability
+type HealthResponse struct {
+	Status     string  `json:"status"`
+	Uptime     string  `json:"uptime"`
+	Goroutines int     `json:"goroutines"`
+	MemoryMB   float64 `json:"memory_mb"`
+	GoVersion  string  `json:"go_version"`
+}
+
+// handleHealth returns runtime stats for monitoring and Kubernetes probes
+func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
+	var memStats runtime.MemStats
+	runtime.ReadMemStats(&memStats)
+
+	uptime := time.Since(s.startTime)
+
+	response := HealthResponse{
+		Status:     "ok",
+		Uptime:     uptime.Round(time.Second).String(),
+		Goroutines: runtime.NumGoroutine(),
+		MemoryMB:   float64(memStats.Alloc) / 1024 / 1024,
+		GoVersion:  runtime.Version(),
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		slog.Error("json_encode_error", "endpoint", "/health", "error", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+	}
 }
