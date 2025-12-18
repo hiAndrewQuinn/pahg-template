@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" x-data="themeManager()" :data-theme="currentTheme">
+<html lang="en" x-data="{ ...themeManager(), ...staleTabDetector() }" :data-theme="currentTheme">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -79,9 +79,38 @@
         .settings-section h4 {
             margin-bottom: 0.5rem;
         }
+
+        /* Stale tab banner */
+        .stale-tab-banner {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: var(--pico-primary);
+            color: var(--pico-primary-inverse);
+            padding: 1rem;
+            text-align: center;
+            z-index: 9999;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        .stale-tab-banner button {
+            margin-left: 1rem;
+            padding: 0.25rem 1rem;
+        }
+        body.has-banner {
+            padding-top: 4rem;
+        }
     </style>
 </head>
-<body :class="{ 'compact-view': compactView }">
+<body :class="{ 'compact-view': compactView, 'has-banner': showStaleBanner }">
+    <!-- Stale Tab Banner -->
+    <div x-show="showStaleBanner" x-cloak class="stale-tab-banner">
+        <strong>New version available!</strong>
+        This tab is running an outdated version of the dashboard.
+        <button @click="window.location.reload()">Refresh Now</button>
+        <button @click="showStaleBanner = false" style="margin-left: 0.5rem;">Dismiss</button>
+    </div>
+
     <nav class="container-fluid">
         <ul>
             <li><strong>CoinOps Dashboard</strong></li>
@@ -174,6 +203,68 @@
     <script src="/assets/js/htmx.min.js"></script>
     <script src="/assets/js/alpine.min.js" defer></script>
     <script>
+        // Stale tab detector Alpine.js component
+        function staleTabDetector() {
+            return {
+                clientVersion: null,
+                showStaleBanner: false,
+                checkInterval: null,
+
+                init() {
+                    // Fetch initial version on page load
+                    this.fetchMetadata().then(metadata => {
+                        if (metadata) {
+                            this.clientVersion = metadata.version;
+                            console.log('[StaleTab] Client version stored:', this.clientVersion);
+                        }
+                    });
+
+                    // Poll every 60 seconds to check for updates
+                    this.checkInterval = setInterval(() => {
+                        this.checkForUpdates();
+                    }, 60000);
+                },
+
+                async fetchMetadata() {
+                    try {
+                        const response = await fetch('/metadata');
+                        if (!response.ok) {
+                            console.error('[StaleTab] Failed to fetch metadata:', response.status);
+                            return null;
+                        }
+                        return await response.json();
+                    } catch (error) {
+                        console.error('[StaleTab] Error fetching metadata:', error);
+                        return null;
+                    }
+                },
+
+                async checkForUpdates() {
+                    const metadata = await this.fetchMetadata();
+                    if (!metadata) return;
+
+                    const serverVersion = metadata.version;
+
+                    // If we have a client version and it differs from server version
+                    if (this.clientVersion && serverVersion !== this.clientVersion) {
+                        console.log('[StaleTab] Version mismatch detected!');
+                        console.log('[StaleTab] Client:', this.clientVersion, 'Server:', serverVersion);
+                        this.showStaleBanner = true;
+                        // Stop polling once we detect a mismatch
+                        if (this.checkInterval) {
+                            clearInterval(this.checkInterval);
+                        }
+                    }
+                },
+
+                destroy() {
+                    if (this.checkInterval) {
+                        clearInterval(this.checkInterval);
+                    }
+                }
+            };
+        }
+
         // Theme manager Alpine.js component
         function themeManager() {
             return {

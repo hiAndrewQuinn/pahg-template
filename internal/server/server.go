@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"log/slog"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -288,21 +289,34 @@ func (s *Server) handleNotifications(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// MetadataResponse holds the metadata endpoint response
+// MetadataResponse holds the metadata endpoint response for stale tab detection
 type MetadataResponse struct {
-	Version   string `json:"version"`
-	Commit    string `json:"commit"`
-	BuildDate string `json:"build_date"`
+	Version     string                 `json:"version"`
+	Commit      string                 `json:"commit"`
+	BuildDate   string                 `json:"build_date"`
+	Environment string                 `json:"environment"`
+	Features    map[string]interface{} `json:"features"`
 }
 
-// handleMetadata returns version and build information as JSON
-// This endpoint will be extended in issue #8 to support stale tab detection
+// handleMetadata returns version, environment, and feature flags as JSON
+// Used for stale tab detection - clients poll this to detect server updates
 func (s *Server) handleMetadata(w http.ResponseWriter, r *http.Request) {
 	versionInfo := version.Get()
+
+	// Get environment from env var, default to "production"
+	environment := getEnvironment()
+
+	// Build features map from config
+	features := map[string]interface{}{
+		"avg_refresh_interval_ms": s.cfg.Features.AvgRefreshIntervalMs,
+	}
+
 	response := MetadataResponse{
-		Version:   versionInfo.Version,
-		Commit:    versionInfo.Commit,
-		BuildDate: versionInfo.BuildDate,
+		Version:     versionInfo.Version,
+		Commit:      versionInfo.Commit,
+		BuildDate:   versionInfo.BuildDate,
+		Environment: environment,
+		Features:    features,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -310,4 +324,16 @@ func (s *Server) handleMetadata(w http.ResponseWriter, r *http.Request) {
 		slog.Error("json_encode_error", "endpoint", "/metadata", "error", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 	}
+}
+
+// getEnvironment returns the current environment name
+func getEnvironment() string {
+	env := os.Getenv("ENVIRONMENT")
+	if env == "" {
+		env = os.Getenv("ENV")
+	}
+	if env == "" {
+		env = "production"
+	}
+	return env
 }
