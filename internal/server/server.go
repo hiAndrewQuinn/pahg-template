@@ -81,7 +81,11 @@ func (s *Server) setupRoutes() {
 
 // Handler returns the HTTP handler with middleware applied
 func (s *Server) Handler() http.Handler {
-	return middleware.LoggingMiddleware(s.mux)
+	// Chain middleware: RequestID -> Logging
+	// RequestID must run first so the logger can access it from context
+	return middleware.RequestIDMiddleware(
+		middleware.LoggingMiddleware(s.mux),
+	)
 }
 
 // PageData holds common data for page rendering

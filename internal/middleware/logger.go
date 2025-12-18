@@ -32,8 +32,12 @@ func LoggingMiddleware(next http.Handler) http.Handler {
 			ip = forwarded
 		}
 
+		// Get request ID from context
+		reqID := GetRequestID(r.Context())
+
 		// Log request start
 		slog.Info("request_started",
+			"request_id", reqID,
 			"method", r.Method,
 			"path", r.URL.Path,
 			"ip", ip,
@@ -49,6 +53,7 @@ func LoggingMiddleware(next http.Handler) http.Handler {
 		// Log request completion
 		duration := time.Since(start)
 		slog.Info("request_completed",
+			"request_id", reqID,
 			"method", r.Method,
 			"path", r.URL.Path,
 			"status", wrapped.statusCode,
