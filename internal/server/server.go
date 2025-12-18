@@ -90,11 +90,27 @@ func (s *Server) setupRoutes() {
 
 // Handler returns the HTTP handler with middleware applied
 func (s *Server) Handler() http.Handler {
-	// Chain middleware: RequestID -> Logging
-	// RequestID must run first so the logger can access it from context
-	return middleware.RequestIDMiddleware(
-		middleware.LoggingMiddleware(s.mux),
-	)
+	// Chain middleware from outermost to innermost:
+	// 1. RequestID - adds unique ID to every request
+	// 2. Logging - logs all requests with timing
+	// 3. IPAllowlist - restricts by IP (if enabled)
+	// 4. BasicAuth - requires authentication (if enabled)
+	// 5. mux - actual route handling
+	var handler http.Handler = s.mux
+
+	// Apply BasicAuth (innermost security layer)
+	handler = middleware.BasicAuthMiddleware(&s.cfg.Security.BasicAuth)(handler)
+
+	// Apply IP Allowlist (checked before auth)
+	handler = middleware.IPAllowlistMiddleware(&s.cfg.Security.IPAllowlist)(handler)
+
+	// Apply logging
+	handler = middleware.LoggingMiddleware(handler)
+
+	// Apply RequestID (outermost - runs first)
+	handler = middleware.RequestIDMiddleware(handler)
+
+	return handler
 }
 
 // PageData holds common data for page rendering
