@@ -12,11 +12,14 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/crypto/bcrypt"
+
 	"pahg-template/internal/coingecko"
 	"pahg-template/internal/config"
 	pmath "pahg-template/internal/math"
 	"pahg-template/internal/middleware"
 	"pahg-template/internal/notifications"
+	"pahg-template/internal/session"
 	"pahg-template/internal/version"
 )
 
@@ -32,6 +35,7 @@ type Server struct {
 	templates     *template.Template
 	coinService   *coingecko.Service
 	notifications *notifications.Store
+	sessions      *session.Store
 	mux           *http.ServeMux
 	startTime     time.Time
 }
@@ -56,6 +60,7 @@ func New(cfg *config.Config) (*Server, error) {
 		templates:     tmpl,
 		coinService:   coingecko.NewService(cfg.Coins),
 		notifications: notifications.NewStore(),
+		sessions:      session.NewStore(),
 		mux:           http.NewServeMux(),
 		startTime:     time.Now(),
 	}
@@ -72,6 +77,11 @@ func (s *Server) setupRoutes() {
 	} else {
 		s.mux.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.FS(assetsSubFS))))
 	}
+
+	// Auth endpoints (no auth required)
+	s.mux.HandleFunc("/login", s.handleLogin)
+	s.mux.HandleFunc("/auth", s.handleAuth)
+	s.mux.HandleFunc("/logout", s.handleLogout)
 
 	// Pages
 	s.mux.HandleFunc("/", s.handleIndex)
@@ -94,12 +104,12 @@ func (s *Server) Handler() http.Handler {
 	// 1. RequestID - adds unique ID to every request
 	// 2. Logging - logs all requests with timing
 	// 3. IPAllowlist - restricts by IP (if enabled)
-	// 4. BasicAuth - requires authentication (if enabled)
+	// 4. SessionAuth - requires authentication via session or Basic Auth (if enabled)
 	// 5. mux - actual route handling
 	var handler http.Handler = s.mux
 
-	// Apply BasicAuth (innermost security layer)
-	handler = middleware.BasicAuthMiddleware(&s.cfg.Security.BasicAuth)(handler)
+	// Apply SessionAuth (innermost security layer)
+	handler = s.sessionAuthMiddleware(handler)
 
 	// Apply IP Allowlist (checked before auth)
 	handler = middleware.IPAllowlistMiddleware(&s.cfg.Security.IPAllowlist)(handler)
@@ -387,4 +397,225 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 		slog.Error("json_encode_error", "endpoint", "/health", "error", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 	}
+}
+
+// handleLogin serves the login page
+func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
+	// If user is already authenticated, redirect to home
+	if sess := s.getSessionFromRequest(r); sess != nil {
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if err := s.templates.ExecuteTemplate(w, "login.html", nil); err != nil {
+		slog.Error("template_error", "template", "login.html", "error", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+	}
+}
+
+// AuthRequest holds login request data
+type AuthRequest struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+// AuthResponse holds login response data
+type AuthResponse struct {
+	Success  bool   `json:"success"`
+	Error    string `json:"error,omitempty"`
+	Redirect string `json:"redirect,omitempty"`
+}
+
+// handleAuth validates credentials and creates a session
+func (s *Server) handleAuth(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Parse form data
+	if err := r.ParseForm(); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(AuthResponse{
+			Success: false,
+			Error:   "Invalid request",
+		})
+		return
+	}
+
+	username := r.FormValue("username")
+	password := r.FormValue("password")
+
+	// Get credentials from environment
+	envUsername := os.Getenv("BASIC_AUTH_USERNAME")
+	envPasswordHash := os.Getenv("BASIC_AUTH_PASSWORD_HASH")
+
+	// Validate credentials
+	// First check username (simple equality is fine for username)
+	if username != envUsername {
+		slog.Warn("login_failed", "username", username, "ip", r.RemoteAddr, "reason", "invalid_username")
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(AuthResponse{
+			Success: false,
+			Error:   "Invalid username or password",
+		})
+		return
+	}
+
+	// Then verify password hash using bcrypt (constant-time comparison built-in)
+	if err := bcrypt.CompareHashAndPassword([]byte(envPasswordHash), []byte(password)); err != nil {
+		slog.Warn("login_failed", "username", username, "ip", r.RemoteAddr, "reason", "invalid_password")
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(AuthResponse{
+			Success: false,
+			Error:   "Invalid username or password",
+		})
+		return
+	}
+
+	// Create session
+	sess, err := s.sessions.Create(username)
+	if err != nil {
+		slog.Error("session_create_error", "error", err)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(AuthResponse{
+			Success: false,
+			Error:   "Failed to create session",
+		})
+		return
+	}
+
+	// Set session cookie
+	http.SetCookie(w, &http.Cookie{
+		Name:     session.GetCookieName(),
+		Value:    sess.ID,
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   r.TLS != nil, // Only send over HTTPS if available
+		SameSite: http.SameSiteLaxMode,
+		Expires:  sess.ExpiresAt,
+	})
+
+	slog.Info("login_success", "username", username, "session_id", sess.ID, "ip", r.RemoteAddr)
+
+	// Get redirect target from query param or default to /
+	redirect := r.URL.Query().Get("redirect")
+	if redirect == "" {
+		redirect = "/"
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(AuthResponse{
+		Success:  true,
+		Redirect: redirect,
+	})
+}
+
+// handleLogout destroys the session and redirects to login
+func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
+	// Get session from cookie
+	cookie, err := r.Cookie(session.GetCookieName())
+	if err == nil {
+		// Delete session
+		s.sessions.Delete(cookie.Value)
+	}
+
+	// Clear session cookie
+	http.SetCookie(w, &http.Cookie{
+		Name:     session.GetCookieName(),
+		Value:    "",
+		Path:     "/",
+		HttpOnly: true,
+		MaxAge:   -1, // Delete cookie
+	})
+
+	slog.Info("logout", "ip", r.RemoteAddr)
+
+	// Redirect to login page
+	http.Redirect(w, r, "/login", http.StatusSeeOther)
+}
+
+// sessionAuthMiddleware checks for valid session or Basic Auth
+func (s *Server) sessionAuthMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Skip auth for public endpoints
+		if s.isPublicEndpoint(r.URL.Path) {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		// Skip if auth is disabled
+		if !s.cfg.Security.BasicAuth.Enabled {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		// Check for valid session first
+		if sess := s.getSessionFromRequest(r); sess != nil {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		// Check for HTTP Basic Auth as fallback
+		envUsername := os.Getenv("BASIC_AUTH_USERNAME")
+		envPasswordHash := os.Getenv("BASIC_AUTH_PASSWORD_HASH")
+
+		if envUsername != "" && envPasswordHash != "" {
+			reqUser, reqPass, ok := r.BasicAuth()
+			if ok && reqUser == envUsername {
+				// Verify password using bcrypt
+				if err := bcrypt.CompareHashAndPassword([]byte(envPasswordHash), []byte(reqPass)); err == nil {
+					next.ServeHTTP(w, r)
+					return
+				}
+			}
+		}
+
+		// No valid authentication - redirect to login
+		slog.Warn("auth_required", "path", r.URL.Path, "ip", r.RemoteAddr)
+
+		// For AJAX requests, return 401
+		if r.Header.Get("X-Requested-With") == "XMLHttpRequest" || r.Header.Get("HX-Request") == "true" {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		// For regular requests, redirect to login with return URL
+		loginURL := "/login?redirect=" + r.URL.Path
+		http.Redirect(w, r, loginURL, http.StatusSeeOther)
+	})
+}
+
+// isPublicEndpoint returns true if the path doesn't require authentication
+func (s *Server) isPublicEndpoint(path string) bool {
+	publicPaths := []string{
+		"/login",
+		"/auth",
+		"/logout",
+		"/assets/",
+		"/health",
+	}
+
+	for _, publicPath := range publicPaths {
+		if strings.HasPrefix(path, publicPath) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// getSessionFromRequest retrieves the session from the request cookie
+func (s *Server) getSessionFromRequest(r *http.Request) *session.Session {
+	cookie, err := r.Cookie(session.GetCookieName())
+	if err != nil {
+		return nil
+	}
+
+	return s.sessions.Get(cookie.Value)
 }

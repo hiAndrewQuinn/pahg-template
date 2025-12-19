@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en" x-data="{ ...themeManager() }" :data-theme="currentTheme">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - CoinOps Dashboard</title>
+    <link rel="stylesheet" href="/assets/css/pico.min.css">
+    <style>
+        /* Center the login form */
+        main.container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        .login-card {
+            max-width: 400px;
+            width: 100%;
+        }
+
+        /* Theme toggle in header */
+        .theme-toggle {
+            display: flex;
+            gap: 1rem;
+            margin: 0;
+            padding: 0;
+            border: none;
+        }
+        .theme-toggle label {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+            cursor: pointer;
+            margin: 0;
+        }
+        .theme-toggle input[type="radio"] {
+            margin: 0;
+        }
+
+        /* Error message styling */
+        .error-message {
+            background: var(--pico-del-background);
+            color: var(--pico-del-color);
+            padding: 0.75rem;
+            border-radius: var(--pico-border-radius);
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <main class="container">
+        <article class="login-card" x-data="loginForm()">
+            <header>
+                <hgroup>
+                    <h1>CoinOps Dashboard</h1>
+                    <p>Please sign in to continue</p>
+                </hgroup>
+            </header>
+
+            <!-- Error message -->
+            <div x-show="errorMessage" x-cloak class="error-message" x-text="errorMessage"></div>
+
+            <!-- Login form -->
+            <form @submit.prevent="submitLogin">
+                <label for="username">
+                    Username
+                    <input
+                        type="text"
+                        id="username"
+                        name="username"
+                        x-model="username"
+                        required
+                        autocomplete="username"
+                        :disabled="loading"
+                        placeholder="Enter your username">
+                </label>
+
+                <label for="password">
+                    Password
+                    <input
+                        type="password"
+                        id="password"
+                        name="password"
+                        x-model="password"
+                        required
+                        autocomplete="current-password"
+                        :disabled="loading"
+                        placeholder="Enter your password">
+                </label>
+
+                <button
+                    type="submit"
+                    :aria-busy="loading"
+                    :disabled="loading">
+                    <span x-show="!loading">Sign In</span>
+                    <span x-show="loading">Signing in...</span>
+                </button>
+            </form>
+
+            <footer>
+                <details>
+                    <summary>Theme Settings</summary>
+                    <fieldset class="theme-toggle">
+                        <label>
+                            <input type="radio" name="theme" value="light"
+                                   :checked="themeSetting === 'light'"
+                                   @change="setTheme('light')">
+                            Light
+                        </label>
+                        <label>
+                            <input type="radio" name="theme" value="dark"
+                                   :checked="themeSetting === 'dark'"
+                                   @change="setTheme('dark')">
+                            Dark
+                        </label>
+                        <label>
+                            <input type="radio" name="theme" value="auto"
+                                   :checked="themeSetting === 'auto'"
+                                   @change="setTheme('auto')">
+                            Auto
+                        </label>
+                    </fieldset>
+                </details>
+            </footer>
+        </article>
+    </main>
+
+    <script src="/assets/js/alpine.min.js" defer></script>
+    <script>
+        // Theme manager Alpine.js component (same as layout.html)
+        function themeManager() {
+            return {
+                themeSetting: localStorage.getItem('theme') || 'auto',
+                mediaQuery: window.matchMedia('(prefers-color-scheme: dark)'),
+
+                init() {
+                    this.mediaQuery.addEventListener('change', () => {
+                        if (this.themeSetting === 'auto') {
+                            this.currentTheme = this.getSystemTheme();
+                        }
+                    });
+                },
+
+                get currentTheme() {
+                    if (this.themeSetting === 'auto') {
+                        return this.getSystemTheme();
+                    }
+                    return this.themeSetting;
+                },
+
+                getSystemTheme() {
+                    return this.mediaQuery.matches ? 'dark' : 'light';
+                },
+
+                setTheme(theme) {
+                    this.themeSetting = theme;
+                    localStorage.setItem('theme', theme);
+                }
+            };
+        }
+
+        // Login form Alpine.js component
+        function loginForm() {
+            return {
+                username: '',
+                password: '',
+                loading: false,
+                errorMessage: '',
+
+                async submitLogin() {
+                    this.loading = true;
+                    this.errorMessage = '';
+
+                    try {
+                        const response = await fetch('/auth', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/x-www-form-urlencoded',
+                            },
+                            body: new URLSearchParams({
+                                username: this.username,
+                                password: this.password,
+                            }),
+                        });
+
+                        if (response.ok) {
+                            // Login successful - redirect to homepage
+                            const data = await response.json();
+                            if (data.redirect) {
+                                window.location.href = data.redirect;
+                            } else {
+                                window.location.href = '/';
+                            }
+                        } else {
+                            // Login failed
+                            const data = await response.json().catch(() => ({}));
+                            this.errorMessage = data.error || 'Invalid username or password';
+                            this.password = ''; // Clear password field
+                        }
+                    } catch (error) {
+                        console.error('Login error:', error);
+                        this.errorMessage = 'An error occurred. Please try again.';
+                    } finally {
+                        this.loading = false;
+                    }
+                }
+            };
+        }
+    </script>
+</body>
+</html>

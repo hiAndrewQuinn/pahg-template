@@ -4,3 +4,4 @@
 /coinops-dashboard
 /coinops-dashboard-*
 *.exe
+.env

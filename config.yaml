@@ -258,7 +258,7 @@ features:
 #   BASIC_AUTH_PASSWORD - password for basic auth
 security:
   basic_auth:
-    enabled: false  # Set to true to require authentication
+    enabled: true  # Set to true to require authentication
 
   ip_allowlist:
     enabled: false  # Set to true to restrict by IP

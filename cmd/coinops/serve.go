@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
 
+	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
@@ -31,6 +33,17 @@ func init() {
 }
 
 func runServe(cmd *cobra.Command, args []string) error {
+	// Automatically load .env file if it exists
+	// This allows credentials to be loaded without manual export
+	if err := godotenv.Load(); err != nil {
+		if !os.IsNotExist(err) {
+			// Log warning but continue - .env is optional
+			fmt.Fprintf(os.Stderr, "[WARN] Failed to load .env file: %v\n", err)
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "[INFO] Loaded .env file\n")
+	}
+
 	// Setup logger based on config
 	SetupLogger()
 

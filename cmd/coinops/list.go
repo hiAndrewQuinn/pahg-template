@@ -6,9 +6,16 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
+	"golang.org/x/crypto/bcrypt"
 
 	"pahg-template/internal/coingecko"
+)
+
+var (
+	listUsername string
+	listPassword string
 )
 
 var listCmd = &cobra.Command{
@@ -17,15 +24,34 @@ var listCmd = &cobra.Command{
 	Long: `Fetches and displays all configured coins with their current prices
 and 24-hour change. Useful for debugging configuration issues.
 
-Output is TSV format suitable for piping to other tools.`,
+Output is TSV format suitable for piping to other tools.
+
+Requires authentication via --username and --password flags.`,
 	RunE: runList,
 }
 
 func init() {
 	rootCmd.AddCommand(listCmd)
+
+	listCmd.Flags().StringVarP(&listUsername, "username", "u", "", "Username for authentication (required)")
+	listCmd.Flags().StringVarP(&listPassword, "password", "p", "", "Password for authentication (required)")
+	listCmd.MarkFlagRequired("username")
+	listCmd.MarkFlagRequired("password")
 }
 
 func runList(cmd *cobra.Command, args []string) error {
+	// Load .env file for credentials
+	if err := godotenv.Load(); err != nil {
+		if !os.IsNotExist(err) {
+			fmt.Fprintf(os.Stderr, "[WARN] Failed to load .env file: %v\n", err)
+		}
+	}
+
+	// Verify credentials
+	if err := verifyCredentials(listUsername, listPassword); err != nil {
+		return err
+	}
+
 	cfg := GetConfig()
 
 	fmt.Fprintf(os.Stderr, "Config source: %s\n", GetConfigSource())
@@ -69,5 +95,27 @@ func runList(cmd *cobra.Command, args []string) error {
 	}
 
 	w.Flush()
+	return nil
+}
+
+// verifyCredentials checks username and password against stored credentials
+func verifyCredentials(username, password string) error {
+	envUsername := os.Getenv("BASIC_AUTH_USERNAME")
+	envPasswordHash := os.Getenv("BASIC_AUTH_PASSWORD_HASH")
+
+	if envUsername == "" || envPasswordHash == "" {
+		return fmt.Errorf("authentication not configured: run 'coinops genenv' first")
+	}
+
+	// Check username
+	if username != envUsername {
+		return fmt.Errorf("authentication failed: invalid credentials")
+	}
+
+	// Verify password against bcrypt hash
+	if err := bcrypt.CompareHashAndPassword([]byte(envPasswordHash), []byte(password)); err != nil {
+		return fmt.Errorf("authentication failed: invalid credentials")
+	}
+
 	return nil
 }
