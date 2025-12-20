@@ -131,6 +131,8 @@ type PageData struct {
 	Version           string
 	Commit            string
 	CommitDate        string
+	RequestFeatureURL string
+	ReportBugURL      string
 }
 
 // TickerData holds data for the full ticker table (initial load)
@@ -183,6 +185,8 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 		Version:           versionInfo.Version,
 		Commit:            versionInfo.Commit,
 		CommitDate:        versionInfo.CommitDate,
+		RequestFeatureURL: s.cfg.Links.RequestFeatureURL,
+		ReportBugURL:      s.cfg.Links.ReportBugURL,
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")

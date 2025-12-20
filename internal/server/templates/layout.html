@@ -116,6 +116,8 @@
             <li><strong>CoinOps Dashboard</strong></li>
         </ul>
         <ul>
+            <li><a href="{{.RequestFeatureURL}}" target="_blank" rel="noopener">Request feature</a></li>
+            <li><a href="{{.ReportBugURL}}" target="_blank" rel="noopener">Report bug</a></li>
             <li>
                 <a href="#"
                    id="notifications-link"
@@ -136,7 +138,13 @@
     </main>
 
     <footer class="container" style="margin-top: 2rem; padding: 1rem 0; border-top: 1px solid var(--pico-muted-border-color); text-align: center; color: var(--pico-muted-color); font-size: 0.875rem;">
-        CoinOps Dashboard {{.Version}} ({{.Commit}}) | {{.CommitDate}}
+        <div>CoinOps Dashboard {{.Version}} ({{.Commit}}) | {{.CommitDate}}</div>
+        <div style="margin-top: 0.5rem;">
+            <a href="{{.RequestFeatureURL}}" target="_blank" rel="noopener">Request feature</a>
+            &nbsp;|&nbsp;
+            <a href="{{.ReportBugURL}}" target="_blank" rel="noopener">Report bug</a>
+        </div>
+        <div style="margin-top: 0.5rem;">Remixed from <a href="https://github.com/hiAndrewQuinn/pahg-template/" target="_blank" rel="noopener">Andrew Quinn's pahg-template</a></div>
     </footer>
 
     <!-- Notifications Dialog -->
