@@ -5,6 +5,8 @@ import (
 	"encoding/base64"
 	"sync"
 	"time"
+
+	"github.com/jonboulle/clockwork"
 )
 
 const (
@@ -27,13 +29,20 @@ type Store struct {
 	mu       sync.RWMutex
 	sessions map[string]*Session
 	stopChan chan struct{}
+	clock    clockwork.Clock
 }
 
 // NewStore creates a new session store with automatic cleanup
 func NewStore() *Store {
+	return NewStoreWithClock(clockwork.NewRealClock())
+}
+
+// NewStoreWithClock creates a new session store with a custom clock (for testing)
+func NewStoreWithClock(clock clockwork.Clock) *Store {
 	s := &Store{
 		sessions: make(map[string]*Session),
 		stopChan: make(chan struct{}),
+		clock:    clock,
 	}
 
 	// Start background cleanup goroutine
@@ -49,7 +58,7 @@ func (s *Store) Create(username string) (*Session, error) {
 		return nil, err
 	}
 
-	now := time.Now()
+	now := s.clock.Now()
 	session := &Session{
 		ID:        sessionID,
 		Username:  username,
@@ -76,7 +85,7 @@ func (s *Store) Get(sessionID string) *Session {
 	}
 
 	// Check expiration
-	if time.Now().After(session.ExpiresAt) {
+	if s.clock.Now().After(session.ExpiresAt) {
 		s.Delete(sessionID)
 		return nil
 	}
@@ -100,12 +109,12 @@ func (s *Store) Count() int {
 
 // cleanupExpiredSessions runs periodically to remove expired sessions
 func (s *Store) cleanupExpiredSessions() {
-	ticker := time.NewTicker(cleanupInterval)
+	ticker := s.clock.NewTicker(cleanupInterval)
 	defer ticker.Stop()
 
 	for {
 		select {
-		case <-ticker.C:
+		case <-ticker.Chan():
 			s.cleanup()
 		case <-s.stopChan:
 			return
@@ -114,7 +123,7 @@ func (s *Store) cleanupExpiredSessions() {
 }
 
 func (s *Store) cleanup() {
-	now := time.Now()
+	now := s.clock.Now()
 	s.mu.Lock()
 	defer s.mu.Unlock()
 

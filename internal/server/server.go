@@ -33,9 +33,9 @@ var assetsFS embed.FS
 type Server struct {
 	cfg           *config.Config
 	templates     *template.Template
-	coinService   *coingecko.Service
-	notifications *notifications.Store
-	sessions      *session.Store
+	coinService   CoinService
+	notifications NotificationStore
+	sessions      SessionStore
 	mux           *http.ServeMux
 	startTime     time.Time
 }

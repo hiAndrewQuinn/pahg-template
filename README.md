@@ -383,3 +383,65 @@ Flags:
   -p, --password string   Password for authentication (required)
   -h, --help              help for list
 ```
+
+## Testing
+
+The project includes comprehensive unit tests using Go's standard testing package with [testify](https://github.com/stretchr/testify) for assertions and [clockwork](https://github.com/jonboulle/clockwork) for time mocking.
+
+### Running Tests
+
+```bash
+# Run all tests
+go test ./...
+
+# Run tests with verbose output
+go test -v ./...
+
+# Run tests with coverage
+go test -cover ./...
+
+# Run tests for a specific package
+go test -v ./internal/server/...
+
+# Run tests with coverage profile and view in browser
+go test -coverprofile=coverage.out ./...
+go tool cover -html=coverage.out
+
+# Skip slow tests (e.g., the 3-second report generation)
+go test -short ./...
+```
+
+### Test Coverage
+
+All internal packages maintain 80%+ test coverage:
+
+| Package | Coverage |
+|---------|----------|
+| `internal/version` | 100% |
+| `internal/config` | 100% |
+| `internal/middleware` | 100% |
+| `internal/notifications` | 100% |
+| `internal/session` | 93.5% |
+| `internal/coingecko` | 93.9% |
+| `internal/server` | 83.7% |
+| `internal/math` | 81.8% |
+
+### Test Structure
+
+Tests are located alongside the code they test in `*_test.go` files:
+
+```
+internal/
+├── config/
+│   ├── config.go
+│   └── config_test.go
+├── coingecko/
+│   ├── service.go
+│   └── service_test.go
+├── server/
+│   ├── server.go
+│   ├── server_test.go
+│   ├── interfaces.go      # Interfaces for dependency injection
+│   └── mocks_test.go      # Mock implementations for testing
+...
+```
