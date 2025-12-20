@@ -1,5 +1,7 @@
 package config
 
+import "fmt"
+
 // Config holds all application configuration
 type Config struct {
 	Server   ServerConfig   `mapstructure:"server"`
@@ -7,6 +9,13 @@ type Config struct {
 	Coins    []CoinConfig   `mapstructure:"coins"`
 	Features FeaturesConfig `mapstructure:"features"`
 	Security SecurityConfig `mapstructure:"security"`
+	Links    LinksConfig    `mapstructure:"links"`
+}
+
+// LinksConfig holds the mandatory feedback link URLs
+type LinksConfig struct {
+	RequestFeatureURL string `mapstructure:"request_feature_url"`
+	ReportBugURL      string `mapstructure:"report_bug_url"`
 }
 
 // ServerConfig holds HTTP server settings
@@ -91,5 +100,20 @@ func DefaultConfig() *Config {
 				},
 			},
 		},
+		Links: LinksConfig{
+			RequestFeatureURL: "https://github.com/hiAndrewQuinn/pahg-template/issues/new?labels=enhancement&title=%5BFeature%5D+",
+			ReportBugURL:      "https://github.com/hiAndrewQuinn/pahg-template/issues/new?labels=bug&title=%5BBug%5D+",
+		},
 	}
+}
+
+// Validate checks that all mandatory configuration fields are set
+func (c *Config) Validate() error {
+	if c.Links.RequestFeatureURL == "" {
+		return fmt.Errorf("links.request_feature_url is required")
+	}
+	if c.Links.ReportBugURL == "" {
+		return fmt.Errorf("links.report_bug_url is required")
+	}
+	return nil
 }

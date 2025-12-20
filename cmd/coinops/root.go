@@ -96,6 +96,8 @@ func initConfig() {
 	viper.SetDefault("logging.format", defaults.Logging.Format)
 	viper.SetDefault("features.avg_refresh_interval_ms", defaults.Features.AvgRefreshIntervalMs)
 	viper.SetDefault("coins", defaults.Coins)
+	viper.SetDefault("links.request_feature_url", defaults.Links.RequestFeatureURL)
+	viper.SetDefault("links.report_bug_url", defaults.Links.ReportBugURL)
 
 	// Read config file if it exists
 	configUsed = "defaults-only"
@@ -119,6 +121,12 @@ func initConfig() {
 	if err := viper.Unmarshal(cfg); err != nil {
 		fmt.Fprintf(os.Stderr, "[DIAG] Viper Unmarshal ERROR: %v\n", err)
 		cfg = defaults // fallback
+	}
+
+	// Validate mandatory configuration fields
+	if err := cfg.Validate(); err != nil {
+		fmt.Fprintf(os.Stderr, "[FATAL] Configuration validation failed: %v\n", err)
+		os.Exit(1)
 	}
 
 	fmt.Fprintf(os.Stderr, "[DIAG] Final config has %d coins\n", len(cfg.Coins))

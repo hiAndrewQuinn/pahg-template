@@ -252,13 +252,18 @@ coins:
 features:
   avg_refresh_interval_ms: 60000  # Lambda for Poisson distribution (mean refresh interval)
 
+# Mandatory feedback links - app will not start without these
+links:
+  request_feature_url: "https://github.com/hiAndrewQuinn/pahg-template/issues/new?labels=enhancement&title=%5BFeature%5D+"
+  report_bug_url: "https://github.com/hiAndrewQuinn/pahg-template/issues/new?labels=bug&title=%5BBug%5D+"
+
 # Security settings
 # NOTE: Credentials come from environment variables, not this file
 #   BASIC_AUTH_USERNAME - username for basic auth
 #   BASIC_AUTH_PASSWORD - password for basic auth
 security:
   basic_auth:
-    enabled: true  # Set to true to require authentication
+    enabled: false  # Set to true to require authentication
 
   ip_allowlist:
     enabled: false  # Set to true to restrict by IP
