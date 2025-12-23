@@ -6,6 +6,15 @@
     <title>{{.Title}} - CoinOps Dashboard</title>
     <link rel="stylesheet" href="{{ assetURL "/assets/css/pico.min.css" }}" :disabled="zeroCss" id="pico-stylesheet">
     <style>
+        /* Fade in page to mask initial layout shifts */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        body {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
         /* Hide Alpine.js elements until initialized */
         [x-cloak] { display: none !important; }
 
