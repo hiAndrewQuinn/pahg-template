@@ -167,7 +167,7 @@ func TestIPAllowlistMiddleware_XForwardedFor(t *testing.T) {
 	}))
 
 	req := httptest.NewRequest("GET", "/test", nil)
-	req.RemoteAddr = "8.8.8.8:12345" // Would be blocked
+	req.RemoteAddr = "8.8.8.8:12345"               // Would be blocked
 	req.Header.Set("X-Forwarded-For", "10.0.0.50") // But X-Forwarded-For is allowed
 	rec := httptest.NewRecorder()
 

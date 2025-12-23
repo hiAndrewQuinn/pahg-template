@@ -10,9 +10,9 @@ import (
 )
 
 const (
-	sessionIDLength  = 32
-	sessionTimeout   = 24 * time.Hour
-	cleanupInterval  = 1 * time.Hour
+	sessionIDLength   = 32
+	sessionTimeout    = 24 * time.Hour
+	cleanupInterval   = 1 * time.Hour
 	sessionCookieName = "coinops_session"
 )
 

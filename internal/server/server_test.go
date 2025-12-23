@@ -423,8 +423,8 @@ func TestGenerateDelayQueue(t *testing.T) {
 	assert.Len(t, delays, 10)
 	for _, delay := range delays {
 		// Should be within bounds (0.1x to 10x of mean)
-		assert.GreaterOrEqual(t, delay, 100)  // 0.1 * 1000
-		assert.LessOrEqual(t, delay, 10000)   // 10 * 1000
+		assert.GreaterOrEqual(t, delay, 100) // 0.1 * 1000
+		assert.LessOrEqual(t, delay, 10000)  // 10 * 1000
 	}
 }
 

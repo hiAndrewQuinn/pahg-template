@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="en" x-data="{ ...themeManager(), ...staleTabDetector() }" :data-theme="currentTheme">
+<html lang="en" x-data="{ ...themeManager(), ...staleTabDetector() }" :data-theme="zeroCss ? null : currentTheme">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{.Title}} - CoinOps Dashboard</title>
-    <link rel="stylesheet" href="/assets/css/pico.min.css">
+    <link rel="stylesheet" href="/assets/css/pico.min.css" :disabled="zeroCss" id="pico-stylesheet">
     <style>
         /* HTMX indicator styles */
         .htmx-indicator { display: none; }
@@ -187,6 +187,12 @@
                         Dark
                     </label>
                     <label>
+                        <input type="radio" name="theme" value="lights-out"
+                               :checked="themeSetting === 'lights-out'"
+                               @change="setTheme('lights-out')">
+                        Lights Out
+                    </label>
+                    <label>
                         <input type="radio" name="theme" value="auto"
                                :checked="themeSetting === 'auto'"
                                @change="setTheme('auto')">
@@ -200,6 +206,10 @@
                 <label>
                     <input type="checkbox" role="switch" x-model="compactView" @change="saveCompactView()">
                     Compact View
+                </label>
+                <label>
+                    <input type="checkbox" role="switch" x-model="zeroCss" @change="saveZeroCss()">
+                    Zero CSS (pure HTML - ignores theme settings)
                 </label>
             </div>
 
@@ -279,25 +289,31 @@
             return {
                 themeSetting: localStorage.getItem('theme') || 'auto',
                 compactView: localStorage.getItem('compactView') === 'true',
+                zeroCss: localStorage.getItem('zeroCss') === 'true',
                 mediaQuery: window.matchMedia('(prefers-color-scheme: dark)'),
 
                 init() {
                     this.mediaQuery.addEventListener('change', () => {
                         if (this.themeSetting === 'auto') {
-                            this.currentTheme = this.getSystemTheme();
+                            // Force reactivity update
+                            this.themeSetting = 'auto';
                         }
                     });
+
+                    // Apply zeroCss immediately if set
+                    if (this.zeroCss) {
+                        const stylesheet = document.getElementById('pico-stylesheet');
+                        if (stylesheet) stylesheet.disabled = true;
+                    }
                 },
 
                 get currentTheme() {
                     if (this.themeSetting === 'auto') {
-                        return this.getSystemTheme();
+                        // Auto defaults to dark (not lights-out)
+                        // Only use light if system prefers light
+                        return this.mediaQuery.matches ? 'dark' : 'light';
                     }
                     return this.themeSetting;
-                },
-
-                getSystemTheme() {
-                    return this.mediaQuery.matches ? 'dark' : 'light';
                 },
 
                 setTheme(theme) {
@@ -307,6 +323,15 @@
 
                 saveCompactView() {
                     localStorage.setItem('compactView', this.compactView);
+                },
+
+                saveZeroCss() {
+                    localStorage.setItem('zeroCss', this.zeroCss);
+                    // Immediately toggle the stylesheet
+                    const stylesheet = document.getElementById('pico-stylesheet');
+                    if (stylesheet) {
+                        stylesheet.disabled = this.zeroCss;
+                    }
                 }
             };
         }

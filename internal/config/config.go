@@ -94,9 +94,9 @@ func DefaultConfig() *Config {
 					"172.16.0.0/12",  // Class B private
 					"192.168.0.0/16", // Class C private
 					// IPv6 private ranges
-					"::1/128",    // Loopback
-					"fc00::/7",   // Unique local addresses
-					"fe80::/10",  // Link-local addresses
+					"::1/128",   // Loopback
+					"fc00::/7",  // Unique local addresses
+					"fe80::/10", // Link-local addresses
 				},
 			},
 		},

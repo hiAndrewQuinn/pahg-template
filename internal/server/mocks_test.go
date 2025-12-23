@@ -8,7 +8,7 @@ import (
 
 // MockCoinService is a mock implementation of CoinService for testing
 type MockCoinService struct {
-	Coins       []coingecko.Coin
+	Coins        []coingecko.Coin
 	GetPricesErr error
 	GetCoinErr   error
 	SearchErr    error
