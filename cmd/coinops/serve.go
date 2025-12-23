@@ -1,10 +1,14 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
@@ -12,6 +16,11 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"pahg-template/internal/server"
+)
+
+const (
+	// shutdownTimeout is the maximum time to wait for in-flight requests to complete
+	shutdownTimeout = 30 * time.Second
 )
 
 var serveCmd = &cobra.Command{
@@ -67,15 +76,56 @@ func runServe(cmd *cobra.Command, args []string) error {
 	}
 
 	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
-	slog.Info("server_starting",
-		"address", addr,
-		"url", fmt.Sprintf("http://localhost:%d", cfg.Server.Port),
-	)
 
-	if err := http.ListenAndServe(addr, srv.Handler()); err != nil {
+	// Create HTTP server with explicit struct for graceful shutdown
+	httpServer := &http.Server{
+		Addr:    addr,
+		Handler: srv.Handler(),
+	}
+
+	// Channel to receive shutdown signals
+	shutdownChan := make(chan os.Signal, 1)
+	signal.Notify(shutdownChan, syscall.SIGTERM, syscall.SIGINT)
+
+	// Channel to receive server errors
+	serverErrChan := make(chan error, 1)
+
+	// Start server in goroutine
+	go func() {
+		slog.Info("server_starting",
+			"address", addr,
+			"url", fmt.Sprintf("http://localhost:%d", cfg.Server.Port),
+		)
+		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			serverErrChan <- err
+		}
+	}()
+
+	// Wait for shutdown signal or server error
+	select {
+	case sig := <-shutdownChan:
+		slog.Info("shutdown_signal_received", "signal", sig.String())
+	case err := <-serverErrChan:
 		return fmt.Errorf("server failed: %w", err)
 	}
 
+	// Graceful shutdown with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+	defer cancel()
+
+	slog.Info("graceful_shutdown_starting", "timeout", shutdownTimeout.String())
+
+	// Shutdown HTTP server (waits for in-flight requests)
+	if err := httpServer.Shutdown(ctx); err != nil {
+		slog.Error("http_shutdown_error", "error", err)
+	}
+
+	// Close server resources (session cleanup goroutine)
+	if err := srv.Close(); err != nil {
+		slog.Error("server_close_error", "error", err)
+	}
+
+	slog.Info("graceful_shutdown_complete")
 	return nil
 }
 

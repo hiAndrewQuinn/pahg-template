@@ -127,6 +127,13 @@ func (s *Server) Handler() http.Handler {
 	return handler
 }
 
+// Close gracefully shuts down the server's background resources.
+// This should be called during application shutdown to stop background goroutines.
+func (s *Server) Close() error {
+	s.sessions.Close()
+	return nil
+}
+
 // PageData holds common data for page rendering
 type PageData struct {
 	Title             string
