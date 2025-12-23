@@ -3,6 +3,7 @@ package server
 import (
 	"embed"
 	"encoding/json"
+	"fmt"
 	"html/template"
 	"io/fs"
 	"log/slog"
@@ -45,6 +46,15 @@ var funcMap = template.FuncMap{
 	"json": func(v interface{}) template.JS {
 		b, _ := json.Marshal(v)
 		return template.JS(b)
+	},
+	// assetURL appends the git commit hash to asset URLs for cache busting.
+	// This ensures browsers fetch new versions when the application is deployed.
+	"assetURL": func(path string) string {
+		commit := version.Get().Commit
+		if commit == "" || commit == "unknown" {
+			return path
+		}
+		return fmt.Sprintf("%s?v=%s", path, commit)
 	},
 }
 

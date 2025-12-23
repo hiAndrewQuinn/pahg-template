@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{.Title}} - CoinOps Dashboard</title>
-    <link rel="stylesheet" href="/assets/css/pico.min.css" :disabled="zeroCss" id="pico-stylesheet">
+    <link rel="stylesheet" href="{{ assetURL "/assets/css/pico.min.css" }}" :disabled="zeroCss" id="pico-stylesheet">
     <style>
         /* HTMX indicator styles */
         .htmx-indicator { display: none; }
@@ -219,8 +219,8 @@
         </article>
     </dialog>
 
-    <script src="/assets/js/htmx.min.js"></script>
-    <script src="/assets/js/alpine.min.js" defer></script>
+    <script src="{{ assetURL "/assets/js/htmx.min.js" }}"></script>
+    <script src="{{ assetURL "/assets/js/alpine.min.js" }}" defer></script>
     <script>
         // Stale tab detector Alpine.js component
         function staleTabDetector() {

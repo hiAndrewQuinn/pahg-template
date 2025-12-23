@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - CoinOps Dashboard</title>
-    <link rel="stylesheet" href="/assets/css/pico.min.css">
+    <link rel="stylesheet" href="{{ assetURL "/assets/css/pico.min.css" }}">
     <style>
         /* Center the login form */
         main.container {
@@ -126,7 +126,7 @@
         </article>
     </main>
 
-    <script src="/assets/js/alpine.min.js" defer></script>
+    <script src="{{ assetURL "/assets/js/alpine.min.js" }}" defer></script>
     <script>
         // Theme manager Alpine.js component (same as layout.html)
         function themeManager() {
